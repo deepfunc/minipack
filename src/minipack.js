@@ -31,6 +31,7 @@ const path = require('path');
 const babylon = require('babylon');
 const traverse = require('babel-traverse').default;
 const { transformFromAst } = require('babel-core');
+const prettier = require('prettier');
 
 let ID = 0;
 
@@ -243,7 +244,18 @@ function bundle(graph) {
   return result;
 }
 
-const graph = createGraph('./example/entry.js');
-const result = bundle(graph);
+const outDir = path.join(process.cwd(), 'out');
+if (!fs.existsSync(outDir)) {
+  fs.mkdirSync(outDir);
+}
 
-console.log(result);
+const graph = createGraph('./example/entry.js');
+let result = bundle(graph);
+const formatOpts = {
+  singleQuote: true
+};
+result = prettier.format(result, formatOpts);
+
+const outFile = path.join(outDir, 'pack.js');
+fs.writeFileSync(outFile, result);
+console.log('build done.');
