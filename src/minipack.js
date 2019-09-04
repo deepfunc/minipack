@@ -31,7 +31,6 @@ const path = require('path');
 const babylon = require('babylon');
 const traverse = require('babel-traverse').default;
 const { transformFromAst } = require('babel-core');
-const prettier = require('prettier');
 
 let ID = 0;
 
@@ -223,13 +222,14 @@ function bundle(graph) {
   const result = `
     (function(modules) {
       function require(id) {
-        const [fn, mapping] = modules[id];
+        var fn = modules[id].fn;
+        var mapping = modules[id].mapping;
 
         function localRequire(name) {
           return require(mapping[name]);
         }
 
-        const module = { exports : {} };
+        var module = { exports : {} };
 
         fn(localRequire, module, module.exports);
 
@@ -244,18 +244,7 @@ function bundle(graph) {
   return result;
 }
 
-const outDir = path.join(process.cwd(), 'out');
-if (!fs.existsSync(outDir)) {
-  fs.mkdirSync(outDir);
-}
-
-const graph = createGraph('./example/entry.js');
-let result = bundle(graph);
-const formatOpts = {
-  singleQuote: true
+module.exports = {
+  createGraph,
+  bundle
 };
-result = prettier.format(result, formatOpts);
-
-const outFile = path.join(outDir, 'pack.js');
-fs.writeFileSync(outFile, result);
-console.log('build done.');
