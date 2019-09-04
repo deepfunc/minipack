@@ -30,7 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const babylon = require('babylon');
 const traverse = require('babel-traverse').default;
-const {transformFromAst} = require('babel-core');
+const { transformFromAst } = require('babel-core');
 
 let ID = 0;
 
@@ -53,7 +53,7 @@ function createAsset(filename) {
   // The AST contains a lot of information about our code. We can query it to
   // understand what our code is trying to do.
   const ast = babylon.parse(content, {
-    sourceType: 'module',
+    sourceType: 'module'
   });
 
   // This array will hold the relative paths of modules this module depends on.
@@ -66,10 +66,10 @@ function createAsset(filename) {
     // that you can't import a variable, or conditionally import another module.
     // Every time we see an import statement we can just count its value as a
     // dependency.
-    ImportDeclaration: ({node}) => {
+    ImportDeclaration: ({ node }) => {
       // We push the value that we import into the dependencies array.
       dependencies.push(node.source.value);
-    },
+    }
   });
 
   // We also assign a unique identifier to this module by incrementing a simple
@@ -83,8 +83,8 @@ function createAsset(filename) {
   // The `presets` option is a set of rules that tell Babel how to transpile
   // our code. We use `babel-preset-env` to transpile our code to something
   // that most browsers can run.
-  const {code} = transformFromAst(ast, null, {
-    presets: ['env'],
+  const { code } = transformFromAst(ast, null, {
+    presets: ['env']
   });
 
   // Return all information about this module.
@@ -92,7 +92,7 @@ function createAsset(filename) {
     id,
     filename,
     dependencies,
-    code,
+    code
   };
 }
 
