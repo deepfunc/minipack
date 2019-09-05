@@ -201,7 +201,7 @@ function bundle(graph) {
       function (require, module, exports) {
         ${mod.code}
       },
-      ${JSON.stringify(mod.mapping)},
+      ${JSON.stringify(mod.mapping)}
     ],`;
   });
 
@@ -226,26 +226,41 @@ function bundle(graph) {
   // Lastly, with CommonJs, when a module is required, it can expose values by
   // mutating its `exports` object. The `exports` object, after it has been
   // changed by the module's code, is returned from the `require()` function.
-  const result = `
-    (function(modules) {
-      function require(id) {
-        var fn = modules[id][0];
-        var mapping = modules[id][1];
+  //
+  // Add moduleMap to resolve circular require.
+  const loader = function (modules) {
+    var moduleMap = {};
 
-        function localRequire(name) {
-          return require(mapping[name]);
-        }
-
-        var module = { exports : {} };
-
-        fn(localRequire, module, module.exports);
-
+    function require(id) {
+      var module = moduleMap[id];
+      if (module != null) {
         return module.exports;
       }
 
-      require(0);
-    })({${modules}})
-  `;
+      var fn = modules[id][0];
+      var mapping = modules[id][1];
+
+      function localRequire(name) {
+        return require(mapping[name]);
+      }
+
+      module = {
+        id: id,
+        exports: {},
+        loaded: false
+      };
+      moduleMap[id] = module;
+
+      fn(localRequire, module, module.exports);
+      module.loaded = true;
+
+      return module.exports;
+    }
+
+    require(0);
+  };
+
+  const result = `(${loader.toString()})({${modules}})`;
 
   // We simply return the result, hurray! :)
   return result;
