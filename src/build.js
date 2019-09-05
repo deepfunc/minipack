@@ -10,16 +10,16 @@ function build() {
   }
 
   const graph = createGraph('./example/entry.js');
-  let result = bundle(graph);
+  let rst = bundle(graph);
   const formatOpts = {
     singleQuote: true
   };
-  result = prettier.format(result, formatOpts);
+  rst = prettier.format(rst, formatOpts);
 
   const outFile = path.join(outDir, 'pack.js');
-  fs.writeFileSync(outFile, result);
+  fs.writeFileSync(outFile, rst);
 
-  console.log('build done.');
+  console.log('\r\n' + 'build done.');
 }
 
 build();

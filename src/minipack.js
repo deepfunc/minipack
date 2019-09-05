@@ -111,6 +111,10 @@ function createGraph(entry) {
   // that we are defining an array with just the entry asset.
   const queue = [mainAsset];
 
+  // We set a map to record assets which are already created.
+  const assetMap = {};
+  assetMap[mainAsset.filename] = mainAsset;
+
   // We use a `for ... of` loop to iterate over the queue. Initially the queue
   // only has one asset but as we iterate it we will push additional new assets
   // into the queue. This loop will terminate when the queue is empty.
@@ -132,18 +136,21 @@ function createGraph(entry) {
       // into an absolute one by joining it with the path to the directory of
       // the parent asset.
       const absolutePath = path.join(dirname, relativePath);
+      let child = assetMap[absolutePath];
+      if (child == null) {
+        // Parse the asset, read its content, and extract its dependencies.
+        child = createAsset(absolutePath);
+        assetMap[child.filename] = child;
 
-      // Parse the asset, read its content, and extract its dependencies.
-      const child = createAsset(absolutePath);
+        // We push the child asset into the queue so its dependencies
+        // will also be iterated over and parsed.
+        queue.push(child);
+      }
 
       // It's essential for us to know that `asset` depends on `child`. We
       // express that relationship by adding a new property to the `mapping`
       // object with the id of the child.
       asset.mapping[relativePath] = child.id;
-
-      // Finally, we push the child asset into the queue so its dependencies
-      // will also be iterated over and parsed.
-      queue.push(child);
     });
   }
 
