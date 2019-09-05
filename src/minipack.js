@@ -222,8 +222,8 @@ function bundle(graph) {
   const result = `
     (function(modules) {
       function require(id) {
-        var fn = modules[id].fn;
-        var mapping = modules[id].mapping;
+        var fn = modules[id][0];
+        var mapping = modules[id][1];
 
         function localRequire(name) {
           return require(mapping[name]);
