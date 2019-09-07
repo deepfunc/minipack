@@ -1,4 +1,4 @@
-import { fileB } from './fileB.js';
+import { fileB } from './fileB';
 
 export function getFileA() {
   return 'fileA';

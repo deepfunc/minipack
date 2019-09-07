@@ -1,3 +1,3 @@
-import { getFileA } from './fileA.js';
+import { getFileA } from './fileA';
 
 export const fileB = getFileA() + ', fileB';
