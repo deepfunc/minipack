@@ -12,6 +12,7 @@ module.exports = {
       'asyncArrow': 'always'
     }],
     'generator-star-spacing': ['error', 'after'],
-    'operator-linebreak': ['error', 'before', { overrides: { '=': 'after' } }]
+    'operator-linebreak': ['error', 'before', { overrides: { '=': 'after' } }],
+    'no-prototype-builtins': 'off'
   }
 };
