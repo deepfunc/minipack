@@ -17,7 +17,8 @@
     "chokidar": "^3.0.2",
     "commander": "^3.0.1",
     "enhanced-resolve": "^4.1.0",
-    "prettier": "^1.18.2"
+    "prettier": "^1.18.2",
+    "throttle-debounce": "^2.1.0"
   },
   "devDependencies": {
     "eslint": "^6.3.0",

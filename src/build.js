@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const prettier = require('prettier');
 const chokidar = require('chokidar');
-const { createGraph, bundle } = require('./minipack');
+const { debounce } = require('throttle-debounce');
+const { initPack, createGraph, bundle } = require('./minipack');
 
 const fsPromises = fs.promises;
 
@@ -11,6 +12,12 @@ const entryDir = path.join(rootDir, 'example');
 let isPacking = false;
 let isWatchingInited = false;
 let runOpts;
+const pendingOfWatchFiles = [];
+
+const onFileChange = debounce(300, () => {
+  pendingOfWatchFiles.splice(0, pendingOfWatchFiles.length);
+  start(runOpts);
+});
 
 async function packFromEntry() {
   if (isPacking) {
@@ -25,6 +32,7 @@ async function packFromEntry() {
     fs.mkdirSync(outDir);
   }
 
+  initPack();
   const graph = await createGraph(entryDir, './entry');
   let rst = bundle(graph);
 
@@ -47,7 +55,8 @@ function watch() {
     };
     chokidar.watch([entryDir], watchOpts).on('all', (event, path) => {
       if (event === 'change') {
-        start(runOpts);
+        pendingOfWatchFiles.push(path);
+        onFileChange();
       }
     });
     isWatchingInited = true;

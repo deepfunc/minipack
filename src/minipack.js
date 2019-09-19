@@ -8,7 +8,7 @@ const resolver = require('./resolver');
 const fsPromises = fs.promises;
 
 let ID = 0;
-const assetMap = {};
+let assetMap = {};
 
 async function createGraph(startPath, request) {
   const { filepath: entryFilePath } = await resolveFilePath(startPath, request);
@@ -86,7 +86,7 @@ function bundle(graph) {
     ],`;
   });
 
-  const loader = function (modules) {
+  const loader = function (modules, entryID) {
     var moduleMap = {};
 
     function require(id) {
@@ -115,13 +115,18 @@ function bundle(graph) {
       return module.exports;
     }
 
-    require(0);
+    require(entryID);
   };
 
-  return `(${loader.toString()})({${modules}})`;
+  return `(${loader.toString()})({${modules}}, ${graph[0].id})`;
+}
+
+function initPack() {
+  assetMap = {};
 }
 
 module.exports = {
+  initPack,
   createGraph,
   bundle
 };
