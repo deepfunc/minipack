@@ -8,14 +8,15 @@ const resolver = require('./resolver');
 const fsPromises = fs.promises;
 
 let ID = 0;
-let assetMap = {};
+const cacheMap = {};
 
-async function createGraph(startPath, request) {
+async function createGraphFromEntry(startPath, request) {
   const { filepath: entryFilePath } = await resolveFilePath(startPath, request);
   const mainAsset = await createAsset(entryFilePath);
 
+  const assetMap = {};
   const queue = [mainAsset];
-  const graph = [];
+  const graph = {};
 
   assetMap[mainAsset.filename] = mainAsset;
 
@@ -37,10 +38,10 @@ async function createGraph(startPath, request) {
       asset.mapping[relativePath] = child.id;
     }
 
-    graph.push(asset);
+    graph[asset.filename] = asset;
   }
 
-  return graph;
+  return { graph, entryFilePath };
 }
 
 function resolveFilePath(startPath, request) {
@@ -48,44 +49,53 @@ function resolveFilePath(startPath, request) {
 }
 
 async function createAsset(filename) {
-  const fileContent = await fsPromises.readFile(filename, 'utf-8');
+  let asset = cacheMap[filename];
+  if (asset == null) {
+    const fileContent = await fsPromises.readFile(filename, 'utf-8');
 
-  const ast = babylon.parse(fileContent, {
-    sourceType: 'module'
-  });
+    const ast = babylon.parse(fileContent, {
+      sourceType: 'module'
+    });
 
-  const dependencies = [];
-  traverse(ast, {
-    ImportDeclaration: ({ node }) => {
-      dependencies.push(node.source.value);
-    }
-  });
+    const dependencies = [];
+    traverse(ast, {
+      ImportDeclaration: ({ node }) => {
+        dependencies.push(node.source.value);
+      }
+    });
 
-  const id = ID++;
-  const { code } = transformFromAst(ast, null, {
-    presets: ['env']
-  });
+    const id = ID++;
+    const { code } = transformFromAst(ast, null, {
+      presets: ['env']
+    });
 
-  return {
-    id,
-    filename,
-    dependencies,
-    code
-  };
+    asset = {
+      id,
+      filename,
+      dependencies,
+      code
+    };
+    cacheMap[filename] = asset;
+  }
+
+  return asset;
 }
 
-function bundle(graph) {
+function bundle(graph, entryFilePath) {
   let modules = '';
 
-  graph.forEach(mod => {
+  const modKeys = Object.keys(graph);
+  for (const key of modKeys) {
+    const mod = graph[key];
     modules += `${mod.id}: [
       function (require, module, exports) {
         ${mod.code}
       },
       ${JSON.stringify(mod.mapping)}
     ],`;
-  });
+  }
 
+  /* eslint-disable */
   const loader = function (modules, entryID) {
     var moduleMap = {};
 
@@ -117,16 +127,19 @@ function bundle(graph) {
 
     require(entryID);
   };
+  /* eslint-enable */
 
-  return `(${loader.toString()})({${modules}}, ${graph[0].id})`;
+  return `(${loader.toString()})({${modules}}, ${graph[entryFilePath].id})`;
 }
 
-function initPack() {
-  assetMap = {};
+function cleanCaches(files) {
+  files.forEach(file => {
+    delete cacheMap[file];
+  });
 }
 
 module.exports = {
-  initPack,
-  createGraph,
-  bundle
+  createGraphFromEntry,
+  bundle,
+  cleanCaches
 };
