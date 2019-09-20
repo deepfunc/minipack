@@ -3,4 +3,4 @@ import msg from './msg';
 import { fileAOut } from './fileA';
 
 console.log(`${message} ${msg}`);
-console.log(`fileAOut666: ${fileAOut}`);
+console.log(`fileAOut21: ${fileAOut}`);

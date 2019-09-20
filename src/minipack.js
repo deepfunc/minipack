@@ -4,18 +4,20 @@ const babylon = require('babylon');
 const traverse = require('babel-traverse').default;
 const { transformFromAst } = require('babel-core');
 const resolver = require('./resolver');
+const FileDep = require('./FileDep');
 
 const fsPromises = fs.promises;
 
 let ID = 0;
-let assetMap = {};
+const fileDep = new FileDep();
 
-async function createGraph(startPath, request) {
+async function createGraphFromEntry(startPath, request) {
   const { filepath: entryFilePath } = await resolveFilePath(startPath, request);
   const mainAsset = await createAsset(entryFilePath);
 
+  const assetMap = {};
   const queue = [mainAsset];
-  const graph = [];
+  const graph = {};
 
   assetMap[mainAsset.filename] = mainAsset;
 
@@ -23,6 +25,7 @@ async function createGraph(startPath, request) {
     const asset = queue.shift();
     asset.mapping = {};
     const dirname = path.dirname(asset.filename);
+    const deps = [];
 
     for (const relativePath of asset.dependencies) {
       const { filepath: absolutePath } = await resolveFilePath(dirname, relativePath);
@@ -35,12 +38,14 @@ async function createGraph(startPath, request) {
       }
 
       asset.mapping[relativePath] = child.id;
+      deps.push(absolutePath);
     }
 
-    graph.push(asset);
+    fileDep.addDeps(asset.filename, deps);
+    graph[asset.filename] = asset;
   }
 
-  return graph;
+  return { graph, entryFilePath };
 }
 
 function resolveFilePath(startPath, request) {
@@ -74,18 +79,21 @@ async function createAsset(filename) {
   };
 }
 
-function bundle(graph) {
+function bundle(graph, entryFilePath) {
   let modules = '';
 
-  graph.forEach(mod => {
+  const modKeys = Object.keys(graph);
+  for (const key of modKeys) {
+    const mod = graph[key];
     modules += `${mod.id}: [
       function (require, module, exports) {
         ${mod.code}
       },
       ${JSON.stringify(mod.mapping)}
     ],`;
-  });
+  }
 
+  /* eslint-disable */
   const loader = function (modules, entryID) {
     var moduleMap = {};
 
@@ -117,16 +125,39 @@ function bundle(graph) {
 
     require(entryID);
   };
+  /* eslint-enable */
 
-  return `(${loader.toString()})({${modules}}, ${graph[0].id})`;
+  return `(${loader.toString()})({${modules}}, ${graph[entryFilePath].id})`;
 }
 
-function initPack() {
-  assetMap = {};
+async function updateGraphForChanges(currGraph, changedFiles) {
+  /**
+   * 文件发生变化，更新依赖图步骤如下：
+   * 1. 重新转码文件，并拿到所有依赖文件的绝对路径；
+   * 2. 检查当前依赖文件数组与原依赖文件数组；
+   * 3. 新增的依赖要解析并加入依赖图（注意递归依赖）；
+   * 4. 删除的依赖要删除依赖图中的内容（注意递归依赖）；
+   */
+
+  for (const changedFile of changedFiles) {
+    const fileContent = await fsPromises.readFile(changedFile, 'utf-8');
+    const ast = babylon.parse(fileContent, {
+      sourceType: 'module'
+    });
+
+    const dependencies = [];
+    traverse(ast, {
+      ImportDeclaration: ({ node }) => {
+        dependencies.push(node.source.value);
+      }
+    });
+  }
+
+  return currGraph;
 }
 
 module.exports = {
-  initPack,
-  createGraph,
-  bundle
+  createGraphFromEntry,
+  bundle,
+  updateGraphForChanges
 };
